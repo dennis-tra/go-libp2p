@@ -11,21 +11,21 @@ import (
 	pbv2 "github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/pb"
 )
 
-func getRandScheduledWork() scheduledWorkTimes {
+func getRandScheduledWork() ScheduledWorkTimes {
 	randTime := func() time.Time {
 		return time.Now().Add(time.Duration(rand.Intn(10)) * time.Second)
 	}
-	return scheduledWorkTimes{
-		leastFrequentInterval:       0,
-		nextRefresh:                 randTime(),
-		nextBackoff:                 randTime(),
-		nextOldCandidateCheck:       randTime(),
-		nextAllowedCallToPeerSource: randTime(),
+	return ScheduledWorkTimes{
+		LeastFrequentInterval:       0,
+		NextRefresh:                 randTime(),
+		NextBackoff:                 randTime(),
+		NextOldCandidateCheck:       randTime(),
+		NextAllowedCallToPeerSource: randTime(),
 	}
 }
 
 func TestMetricsNoAllocNoCover(t *testing.T) {
-	scheduledWork := []scheduledWorkTimes{}
+	scheduledWork := []ScheduledWorkTimes{}
 	for i := 0; i < 10; i++ {
 		scheduledWork = append(scheduledWork, getRandScheduledWork())
 	}
@@ -47,7 +47,7 @@ func TestMetricsNoAllocNoCover(t *testing.T) {
 		"CandidateRemoved":           func() { tr.CandidateRemoved(rand.Intn(10)) },
 		"ScheduledWorkUpdated":       func() { tr.ScheduledWorkUpdated(&scheduledWork[rand.Intn(len(scheduledWork))]) },
 		"DesiredReservations":        func() { tr.DesiredReservations(rand.Intn(10)) },
-		"CandidateLoopState":         func() { tr.CandidateLoopState(candidateLoopState(rand.Intn(10))) },
+		"CandidateLoopState":         func() { tr.CandidateLoopState(CandidateLoopState(rand.Intn(10))) },
 	}
 	for method, f := range tests {
 		allocs := testing.AllocsPerRun(1000, f)
