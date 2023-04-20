@@ -107,12 +107,12 @@ func newRelayFinder(host *basic.BasicHost, peerSource PeerSource, conf *config) 
 	}
 }
 
-type scheduledWorkTimes struct {
-	leastFrequentInterval       time.Duration
-	nextRefresh                 time.Time
-	nextBackoff                 time.Time
-	nextOldCandidateCheck       time.Time
-	nextAllowedCallToPeerSource time.Time
+type ScheduledWorkTimes struct {
+	LeastFrequentInterval       time.Duration
+	NextRefresh                 time.Time
+	NextBackoff                 time.Time
+	NextOldCandidateCheck       time.Time
+	NextAllowedCallToPeerSource time.Time
 }
 
 func (rf *relayFinder) background(ctx context.Context) {
@@ -153,12 +153,12 @@ func (rf *relayFinder) background(ctx context.Context) {
 		leastFrequentInterval = rsvpRefreshInterval
 	}
 
-	scheduledWork := &scheduledWorkTimes{
-		leastFrequentInterval:       leastFrequentInterval,
-		nextRefresh:                 now.Add(rsvpRefreshInterval),
-		nextBackoff:                 now.Add(rf.conf.backoff),
-		nextOldCandidateCheck:       now.Add(rf.conf.maxCandidateAge),
-		nextAllowedCallToPeerSource: now.Add(-time.Second), // allow immediately
+	scheduledWork := &ScheduledWorkTimes{
+		LeastFrequentInterval:       leastFrequentInterval,
+		NextRefresh:                 now.Add(rsvpRefreshInterval),
+		NextBackoff:                 now.Add(rf.conf.backoff),
+		NextOldCandidateCheck:       now.Add(rf.conf.maxCandidateAge),
+		NextAllowedCallToPeerSource: now.Add(-time.Second), // allow immediately
 	}
 
 	workTimer := rf.conf.clock.InstantTimer(rf.runScheduledWork(ctx, now, scheduledWork, peerSourceRateLimiter))
@@ -220,49 +220,49 @@ func (rf *relayFinder) clearCachedAddrsAndSignalAddressChange() {
 	rf.metricsTracer.RelayAddressUpdated()
 }
 
-func (rf *relayFinder) runScheduledWork(ctx context.Context, now time.Time, scheduledWork *scheduledWorkTimes, peerSourceRateLimiter chan<- struct{}) time.Time {
-	nextTime := now.Add(scheduledWork.leastFrequentInterval)
+func (rf *relayFinder) runScheduledWork(ctx context.Context, now time.Time, scheduledWork *ScheduledWorkTimes, peerSourceRateLimiter chan<- struct{}) time.Time {
+	nextTime := now.Add(scheduledWork.LeastFrequentInterval)
 
-	if now.After(scheduledWork.nextRefresh) {
-		scheduledWork.nextRefresh = now.Add(rsvpRefreshInterval)
+	if now.After(scheduledWork.NextRefresh) {
+		scheduledWork.NextRefresh = now.Add(rsvpRefreshInterval)
 		if rf.refreshReservations(ctx, now) {
 			rf.clearCachedAddrsAndSignalAddressChange()
 		}
 	}
 
-	if now.After(scheduledWork.nextBackoff) {
-		scheduledWork.nextBackoff = rf.clearBackoff(now)
+	if now.After(scheduledWork.NextBackoff) {
+		scheduledWork.NextBackoff = rf.clearBackoff(now)
 	}
 
-	if now.After(scheduledWork.nextOldCandidateCheck) {
-		scheduledWork.nextOldCandidateCheck = rf.clearOldCandidates(now)
+	if now.After(scheduledWork.NextOldCandidateCheck) {
+		scheduledWork.NextOldCandidateCheck = rf.clearOldCandidates(now)
 	}
 
-	if now.After(scheduledWork.nextAllowedCallToPeerSource) {
+	if now.After(scheduledWork.NextAllowedCallToPeerSource) {
 		select {
 		case peerSourceRateLimiter <- struct{}{}:
-			scheduledWork.nextAllowedCallToPeerSource = now.Add(rf.conf.minInterval)
-			if scheduledWork.nextAllowedCallToPeerSource.Before(nextTime) {
-				nextTime = scheduledWork.nextAllowedCallToPeerSource
+			scheduledWork.NextAllowedCallToPeerSource = now.Add(rf.conf.minInterval)
+			if scheduledWork.NextAllowedCallToPeerSource.Before(nextTime) {
+				nextTime = scheduledWork.NextAllowedCallToPeerSource
 			}
 		default:
 		}
 	} else {
 		// We still need to schedule this work if it's sooner than nextTime
-		if scheduledWork.nextAllowedCallToPeerSource.Before(nextTime) {
-			nextTime = scheduledWork.nextAllowedCallToPeerSource
+		if scheduledWork.NextAllowedCallToPeerSource.Before(nextTime) {
+			nextTime = scheduledWork.NextAllowedCallToPeerSource
 		}
 	}
 
 	// Find the next time we need to run scheduled work.
-	if scheduledWork.nextRefresh.Before(nextTime) {
-		nextTime = scheduledWork.nextRefresh
+	if scheduledWork.NextRefresh.Before(nextTime) {
+		nextTime = scheduledWork.NextRefresh
 	}
-	if scheduledWork.nextBackoff.Before(nextTime) {
-		nextTime = scheduledWork.nextBackoff
+	if scheduledWork.NextBackoff.Before(nextTime) {
+		nextTime = scheduledWork.NextBackoff
 	}
-	if scheduledWork.nextOldCandidateCheck.Before(nextTime) {
-		nextTime = scheduledWork.nextOldCandidateCheck
+	if scheduledWork.NextOldCandidateCheck.Before(nextTime) {
+		nextTime = scheduledWork.NextOldCandidateCheck
 	}
 	if nextTime == now {
 		// Only happens in CI with a mock clock
@@ -806,5 +806,5 @@ func (rf *relayFinder) resetMetrics() {
 	rf.candidateMx.Unlock()
 
 	rf.metricsTracer.RelayAddressCount(0)
-	rf.metricsTracer.ScheduledWorkUpdated(&scheduledWorkTimes{})
+	rf.metricsTracer.ScheduledWorkUpdated(&ScheduledWorkTimes{})
 }
