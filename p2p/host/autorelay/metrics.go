@@ -111,10 +111,10 @@ var (
 	}
 )
 
-type candidateLoopState int
+type CandidateLoopState int
 
 const (
-	peerSourceRateLimited candidateLoopState = iota
+	peerSourceRateLimited CandidateLoopState = iota
 	waitingOnPeerChan
 	waitingForTrigger
 	stopped
@@ -134,9 +134,9 @@ type MetricsTracer interface {
 	CandidateChecked(supportsCircuitV2 bool)
 	CandidateAdded(cnt int)
 	CandidateRemoved(cnt int)
-	CandidateLoopState(state candidateLoopState)
+	CandidateLoopState(state CandidateLoopState)
 
-	ScheduledWorkUpdated(scheduledWork *scheduledWorkTimes)
+	ScheduledWorkUpdated(scheduledWork *ScheduledWorkTimes)
 
 	DesiredReservations(int)
 }
@@ -241,28 +241,28 @@ func (mt *metricsTracer) CandidateRemoved(cnt int) {
 	candidatesTotal.WithLabelValues(*tags...).Add(float64(cnt))
 }
 
-func (mt *metricsTracer) CandidateLoopState(state candidateLoopState) {
+func (mt *metricsTracer) CandidateLoopState(state CandidateLoopState) {
 	candLoopState.Set(float64(state))
 }
 
-func (mt *metricsTracer) ScheduledWorkUpdated(scheduledWork *scheduledWorkTimes) {
+func (mt *metricsTracer) ScheduledWorkUpdated(scheduledWork *ScheduledWorkTimes) {
 	tags := metricshelper.GetStringSlice()
 	defer metricshelper.PutStringSlice(tags)
 
 	*tags = append(*tags, "allowed peer source call")
-	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.nextAllowedCallToPeerSource.Unix()))
+	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.NextAllowedCallToPeerSource.Unix()))
 	*tags = (*tags)[:0]
 
 	*tags = append(*tags, "reservation refresh")
-	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.nextRefresh.Unix()))
+	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.NextRefresh.Unix()))
 	*tags = (*tags)[:0]
 
 	*tags = append(*tags, "clear backoff")
-	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.nextBackoff.Unix()))
+	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.NextBackoff.Unix()))
 	*tags = (*tags)[:0]
 
 	*tags = append(*tags, "old candidate check")
-	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.nextOldCandidateCheck.Unix()))
+	scheduledWorkTime.WithLabelValues(*tags...).Set(float64(scheduledWork.NextOldCandidateCheck.Unix()))
 }
 
 func (mt *metricsTracer) DesiredReservations(cnt int) {
@@ -354,7 +354,7 @@ func (mt *wrappedMetricsTracer) CandidateRemoved(cnt int) {
 	}
 }
 
-func (mt *wrappedMetricsTracer) ScheduledWorkUpdated(scheduledWork *scheduledWorkTimes) {
+func (mt *wrappedMetricsTracer) ScheduledWorkUpdated(scheduledWork *ScheduledWorkTimes) {
 	if mt.mt != nil {
 		mt.mt.ScheduledWorkUpdated(scheduledWork)
 	}
@@ -366,7 +366,7 @@ func (mt *wrappedMetricsTracer) DesiredReservations(cnt int) {
 	}
 }
 
-func (mt *wrappedMetricsTracer) CandidateLoopState(state candidateLoopState) {
+func (mt *wrappedMetricsTracer) CandidateLoopState(state CandidateLoopState) {
 	if mt.mt != nil {
 		mt.mt.CandidateLoopState(state)
 	}
