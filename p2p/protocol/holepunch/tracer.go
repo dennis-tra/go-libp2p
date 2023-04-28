@@ -2,7 +2,6 @@ package holepunch
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -218,7 +217,6 @@ func (t *tracer) HolePunchAttempt(p peer.ID) {
 
 func (t *tracer) gc() {
 	defer func() {
-		fmt.Println("done")
 		t.refCount.Done()
 	}()
 
