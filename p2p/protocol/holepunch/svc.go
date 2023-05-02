@@ -89,6 +89,7 @@ func NewService(h host.Host, ids identify.IDService, opts ...Option) (*Service, 
 
 	s.refCount.Add(1)
 	go s.watchForPublicAddr()
+	go s.watchForReachabilityChanges()
 
 	return s, nil
 }
@@ -110,7 +111,7 @@ func (s *Service) watchForPublicAddr() {
 		if len(s.getPublicAddrs()) > 0 {
 			log.Debug("Host now has a public address. Starting holepunch protocol.")
 			s.host.SetStreamHandler(Protocol, s.handleNewStream)
-			break
+			return
 		}
 
 		select {
@@ -124,7 +125,9 @@ func (s *Service) watchForPublicAddr() {
 			t.Reset(duration)
 		}
 	}
+}
 
+func (s *Service) watchForReachabilityChanges() {
 	// Only start the holePuncher if we're behind a NAT / firewall.
 	sub, err := s.host.EventBus().Subscribe(&event.EvtLocalReachabilityChanged{}, eventbus.Name("holepunch"))
 	if err != nil {
