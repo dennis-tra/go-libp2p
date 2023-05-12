@@ -770,7 +770,7 @@ func (h *BasicHost) Addrs() []ma.Multiaddr {
 	}
 
 	type addCertHasher interface {
-		AddCertHashes(m ma.Multiaddr) ma.Multiaddr
+		AddCertHashes(m ma.Multiaddr) (ma.Multiaddr, bool)
 	}
 
 	addrs := h.AddrsFactory(h.AllAddrs())
@@ -792,7 +792,11 @@ func (h *BasicHost) Addrs() []ma.Multiaddr {
 			if !ok {
 				continue
 			}
-			addrs[i] = tpt.AddCertHashes(addr)
+			addrWithCerthash, added := tpt.AddCertHashes(addr)
+			addrs[i] = addrWithCerthash
+			if !added {
+				log.Debug("Couldn't add certhashes to webtransport multiaddr because we aren't listening on webtransport")
+			}
 		}
 	}
 	return addrs
