@@ -88,7 +88,7 @@ func makeBasicHost(listenPort int, insecure bool, randseed int64) (host.Host, er
 
 func getHostAddress(ha host.Host) string {
 	// Build host multiaddress
-	hostAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", ha.ID().Pretty()))
+	hostAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", ha.ID()))
 
 	// Now we can build a full multiaddress to reach this host
 	// by encapsulating both addresses:
@@ -151,7 +151,7 @@ func runSender(ctx context.Context, ha host.Host, targetPeer string) {
 		return
 	}
 
-	// We have a peer ID and a targetAddr so we add it to the peerstore
+	// We have a peer ID and a targetAddr, so we add it to the peerstore
 	// so LibP2P knows how to contact it
 	ha.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
 

@@ -28,7 +28,6 @@ import (
 	libp2pwebtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 
 	"github.com/benbjohnson/clock"
-	"github.com/golang/mock/gomock"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/multiformats/go-multibase"
@@ -37,6 +36,7 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 const clockSkewAllowance = time.Hour
@@ -178,7 +178,7 @@ func TestHashVerification(t *testing.T) {
 		var trErr *quic.TransportError
 		require.ErrorAs(t, err, &trErr)
 		require.Equal(t, quic.TransportErrorCode(0x12a), trErr.ErrorCode)
-		require.Contains(t, trErr.ErrorMessage, "cert hash not found")
+		require.Contains(t, errors.Unwrap(trErr).Error(), "cert hash not found")
 	})
 
 	t.Run("fails when adding a wrong hash", func(t *testing.T) {
@@ -220,14 +220,13 @@ func TestCanDial(t *testing.T) {
 func TestListenAddrValidity(t *testing.T) {
 	valid := []ma.Multiaddr{
 		ma.StringCast("/ip6/::/udp/0/quic-v1/webtransport/"),
-		ma.StringCast("/ip4/127.0.0.1/udp/1234/quic-v1/webtransport/"),
 	}
 
 	invalid := []ma.Multiaddr{
-		ma.StringCast("/ip4/127.0.0.1/udp/1234"),              // missing webtransport
-		ma.StringCast("/ip4/127.0.0.1/udp/1234/webtransport"), // missing quic
-		ma.StringCast("/ip4/127.0.0.1/tcp/1234/webtransport"), // WebTransport over TCP? Is this a joke?
-		ma.StringCast("/ip4/127.0.0.1/udp/1234/quic-v1/webtransport/certhash/" + randomMultihash(t)),
+		ma.StringCast("/ip4/127.0.0.1/udp/0"),                                                     // missing webtransport
+		ma.StringCast("/ip4/127.0.0.1/udp/0/webtransport"),                                        // missing quic
+		ma.StringCast("/ip4/127.0.0.1/tcp/0/webtransport"),                                        // WebTransport over TCP? Is this a joke?
+		ma.StringCast("/ip4/127.0.0.1/udp/0/quic-v1/webtransport/certhash/" + randomMultihash(t)), // We can't listen on a specific certhash
 	}
 
 	_, key := newIdentity(t)
@@ -361,7 +360,7 @@ func TestResourceManagerListening(t *testing.T) {
 }
 
 // TODO: unify somehow. We do the same in libp2pquic.
-//go:generate sh -c "go run github.com/golang/mock/mockgen -package libp2pwebtransport_test -destination mock_connection_gater_test.go github.com/libp2p/go-libp2p/core/connmgr ConnectionGater && go run golang.org/x/tools/cmd/goimports -w mock_connection_gater_test.go"
+//go:generate sh -c "go run go.uber.org/mock/mockgen -package libp2pwebtransport_test -destination mock_connection_gater_test.go github.com/libp2p/go-libp2p/core/connmgr ConnectionGater && go run golang.org/x/tools/cmd/goimports -w mock_connection_gater_test.go"
 
 func TestConnectionGaterDialing(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -669,7 +668,7 @@ func serverSendsBackValidCert(t *testing.T, timeSinceUnixEpoch time.Duration, ke
 	require.NoError(t, err)
 	defer l.Close()
 
-	conn, err := quic.DialAddr(l.Addr().String(), &tls.Config{
+	conn, err := quic.DialAddr(context.Background(), l.Addr().String(), &tls.Config{
 		NextProtos:         []string{http3.NextProtoH3},
 		InsecureSkipVerify: true,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {

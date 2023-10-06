@@ -21,11 +21,11 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/swarm"
 	. "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 
-	"github.com/golang/mock/gomock"
 	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 var log = logging.Logger("swarm_test")
@@ -390,7 +390,7 @@ func TestTypedNilConn(t *testing.T) {
 
 func TestPreventDialListenAddr(t *testing.T) {
 	s := GenSwarm(t, OptDialOnly)
-	if err := s.Listen(ma.StringCast("/ip4/0.0.0.0/udp/0/quic")); err != nil {
+	if err := s.Listen(ma.StringCast("/ip4/0.0.0.0/udp/0/quic-v1")); err != nil {
 		t.Fatal(err)
 	}
 	addrs, err := s.InterfaceListenAddresses()

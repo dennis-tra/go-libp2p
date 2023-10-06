@@ -47,15 +47,10 @@ limits := cfg.Build(scaledDefaultLimits)
 // The resource manager expects a limiter, se we create one from our limits.
 limiter := rcmgr.NewFixedLimiter(limits)
 
-// (Optional if you want metrics)
-rcmgrObs.MustRegisterWith(prometheus.DefaultRegisterer)
-str, err := rcmgrObs.NewStatsTraceReporter()
-if err != nil {
-  panic(err)
-}
-
+// Metrics are enabled by default. If you want to disable metrics, use the 
+// WithMetricsDisabled option
 // Initialize the resource manager
-rm, err := rcmgr.NewResourceManager(limiter, rcmgr.WithTraceReporter(str))
+rm, err := rcmgr.NewResourceManager(limiter, rcmgr.WithMetricsDisabled())
 if err != nil {
   panic(err)
 }

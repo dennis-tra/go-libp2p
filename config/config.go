@@ -26,6 +26,7 @@ import (
 	blankhost "github.com/libp2p/go-libp2p/p2p/host/blank"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	routed "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/swarm"
 	tptu "github.com/libp2p/go-libp2p/p2p/net/upgrader"
@@ -125,6 +126,8 @@ type Config struct {
 	PrometheusRegisterer prometheus.Registerer
 
 	DialRanker network.DialRanker
+
+	SwarmOpts []swarm.Option
 }
 
 func (cfg *Config) makeSwarm(eventBus event.Bus, enableMetrics bool) (*swarm.Swarm, error) {
@@ -159,7 +162,7 @@ func (cfg *Config) makeSwarm(eventBus event.Bus, enableMetrics bool) (*swarm.Swa
 		return nil, err
 	}
 
-	opts := make([]swarm.Option, 0, 6)
+	opts := cfg.SwarmOpts
 	if cfg.Reporter != nil {
 		opts = append(opts, swarm.WithMetrics(cfg.Reporter))
 	}
@@ -175,11 +178,10 @@ func (cfg *Config) makeSwarm(eventBus event.Bus, enableMetrics bool) (*swarm.Swa
 	if cfg.MultiaddrResolver != nil {
 		opts = append(opts, swarm.WithMultiaddrResolver(cfg.MultiaddrResolver))
 	}
-	dialRanker := cfg.DialRanker
-	if dialRanker == nil {
-		dialRanker = swarm.NoDelayDialRanker
+	if cfg.DialRanker != nil {
+		opts = append(opts, swarm.WithDialRanker(cfg.DialRanker))
 	}
-	opts = append(opts, swarm.WithDialRanker(dialRanker))
+
 	if enableMetrics {
 		opts = append(opts,
 			swarm.WithMetricsTracer(swarm.NewMetricsTracer(swarm.WithRegisterer(cfg.PrometheusRegisterer))))
@@ -293,10 +295,23 @@ func (cfg *Config) addTransports(h host.Host) error {
 //
 // This function consumes the config. Do not reuse it (really!).
 func (cfg *Config) NewNode() (host.Host, error) {
+	// If possible check that the resource manager conn limit is higher than the
+	// limit set in the conn manager.
+	if l, ok := cfg.ResourceManager.(connmgr.GetConnLimiter); ok {
+		err := cfg.ConnManager.CheckLimit(l)
+		if err != nil {
+			log.Warn(fmt.Sprintf("rcmgr limit conflicts with connmgr limit: %v", err))
+		}
+	}
+
 	eventBus := eventbus.NewBus(eventbus.WithMetricsTracer(eventbus.NewMetricsTracer(eventbus.WithRegisterer(cfg.PrometheusRegisterer))))
 	swrm, err := cfg.makeSwarm(eventBus, !cfg.DisableMetrics)
 	if err != nil {
 		return nil, err
+	}
+
+	if !cfg.DisableMetrics {
+		rcmgr.MustRegisterWith(cfg.PrometheusRegisterer)
 	}
 
 	h, err := bhost.NewHost(swrm, &bhost.HostOpts{
@@ -413,6 +428,11 @@ func (cfg *Config) NewNode() (host.Host, error) {
 			PeerKey:            autonatPrivKey,
 			Peerstore:          ps,
 			DialRanker:         swarm.NoDelayDialRanker,
+			SwarmOpts: []swarm.Option{
+				// It is better to disable black hole detection and just attempt a dial for autonat
+				swarm.WithUDPBlackHoleConfig(false, 0, 0),
+				swarm.WithIPv6BlackHoleConfig(false, 0, 0),
+			},
 		}
 
 		dialer, err := autoNatCfg.makeSwarm(eventbus.NewBus(), false)

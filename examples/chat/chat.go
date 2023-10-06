@@ -51,7 +51,7 @@ import (
 func handleStream(s network.Stream) {
 	log.Println("Got a new stream!")
 
-	// Create a buffer stream for non blocking read and write.
+	// Create a buffer stream for non-blocking read and write.
 	rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 
 	go readData(rw)
@@ -187,7 +187,7 @@ func startPeer(ctx context.Context, h host.Host, streamHandler network.StreamHan
 		return
 	}
 
-	log.Printf("Run './chat -d /ip4/127.0.0.1/tcp/%v/p2p/%s' on another console.\n", port, h.ID().Pretty())
+	log.Printf("Run './chat -d /ip4/127.0.0.1/tcp/%v/p2p/%s' on another console.\n", port, h.ID())
 	log.Println("You can replace 127.0.0.1 with public IP as well.")
 	log.Println("Waiting for incoming connection")
 	log.Println()
@@ -227,7 +227,7 @@ func startPeerAndConnect(ctx context.Context, h host.Host, destination string) (
 	}
 	log.Println("Established connection to destination")
 
-	// Create a buffered stream so that read and writes are non blocking.
+	// Create a buffered stream so that read and writes are non-blocking.
 	rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 
 	return rw, nil
