@@ -71,6 +71,7 @@ func (n *natEmitter) worker() {
 				continue
 			}
 			n.reachability = ev.Reachability
+			n.maybeNotify()
 		case <-ticker.C:
 			enoughTimeSinceLastUpdate = true
 			if pendingUpdate {
